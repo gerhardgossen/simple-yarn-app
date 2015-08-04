@@ -11,6 +11,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptReport;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
@@ -58,11 +59,17 @@ public class Client {
             ApplicationReport report = client.getApplicationReport(appId);
             YarnApplicationState state = report.getYarnApplicationState();
             LOG.info("State={}, Progress={}", state, report.getProgress());
-            if (state == YarnApplicationState.FINISHED || state == YarnApplicationState.FAILED
-                    || state == YarnApplicationState.KILLED) {
+            if (state == YarnApplicationState.FINISHED || state == YarnApplicationState.KILLED) {
+                break;
+            } else if (state == YarnApplicationState.FAILED) {
+                LOG.info("Application {} failed with cause: ", appId, client.getFailureCause());
                 break;
             }
             TimeUnit.SECONDS.sleep(10);
+        }
+        for (ApplicationAttemptReport report : client.getApplicationAttempts(appId)) {
+            LOG.info("Attempt {} report: containerId={} diagnostics={}", report.getApplicationAttemptId(),
+                report.getAMContainerId(), report.getDiagnostics());
         }
         client.stop();
     }

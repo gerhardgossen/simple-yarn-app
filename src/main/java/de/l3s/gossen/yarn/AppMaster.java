@@ -20,8 +20,10 @@ public class AppMaster {
     private static final Logger LOG = LoggerFactory.getLogger(AppMaster.class);
 
     public static void main(String[] args) throws IOException, YarnException, InterruptedException {
-
+        LOG.info("Starting app master");
         Configuration conf = new YarnConfiguration();
+
+        LOG.info("Connecting to RM and NM");
 
         final AMRMClient<ContainerRequest> rmClient = AMRMClient.createAMRMClient();
         rmClient.init(conf);
@@ -37,14 +39,13 @@ public class AppMaster {
         LOG.info("registerApplicationMaster done");
 
 
-        int expiryInterval = conf.getInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
+        int heartBeatInterval = conf.getInt(YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
             YarnConfiguration.DEFAULT_RM_AM_EXPIRY_INTERVAL_MS) / 2;
-        expiryInterval = Math.min(expiryInterval, 10_000);
+        heartBeatInterval = Math.min(heartBeatInterval, 10_000);
         final long startTime = System.currentTimeMillis();
         final long waitTime = TimeUnit.MINUTES.toMillis(1);
         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
         ScheduledFuture<?> future = executorService.scheduleAtFixedRate(new Runnable() {
-
             @Override
             public void run() {
                 try {
@@ -57,11 +58,13 @@ public class AppMaster {
                     LOG.info("Exception during heartbeat", e);
                 }
             }
-        }, expiryInterval / 2, expiryInterval / 2, TimeUnit.MILLISECONDS);
-        LOG.info("Started heartbeat task {} every {} ms", future, expiryInterval / 2);
+        }, heartBeatInterval, heartBeatInterval, TimeUnit.MILLISECONDS);
+        LOG.info("Started heartbeat task {} every {} ms", future, heartBeatInterval);
+
         LOG.info("Going to \"work\" for {} ms", waitTime);
         TimeUnit.MILLISECONDS.sleep(waitTime);
         LOG.info("DONE");
+
         future.cancel(true);
         executorService.shutdown();
         LOG.info("Shutdown of heartbeat is finished.");
