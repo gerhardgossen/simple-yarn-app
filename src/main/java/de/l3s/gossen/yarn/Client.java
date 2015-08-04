@@ -28,6 +28,12 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+
+import static org.apache.hadoop.yarn.conf.YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH;
+import static org.apache.hadoop.yarn.conf.YarnConfiguration.YARN_APPLICATION_CLASSPATH;
+
 public class Client {
     private static final Logger LOG = LoggerFactory.getLogger(Client.class);
 
@@ -72,14 +78,18 @@ public class Client {
 
         ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
         amContainer.setLocalResources(getLocalResources(conf, new Path(jarPath)));
-        amContainer.setEnvironment(getAMEnv());
+        amContainer.setEnvironment(getAMEnv(conf));
         amContainer.setCommands(getAMCommands());
         appContext.setAMContainerSpec(amContainer);
         return appContext;
     }
 
-    private static Map<String, String> getAMEnv() {
-        return Collections.singletonMap("CLASSPATH", "$CLASSPATH:./*:");
+    private static Map<String, String> getAMEnv(Configuration conf) {
+        String[] paths = conf.getStrings(YARN_APPLICATION_CLASSPATH, DEFAULT_YARN_APPLICATION_CLASSPATH);
+        List<String> classpathEntries = Lists.newArrayList(paths);
+        classpathEntries.add("./*");
+        String classpath = Joiner.on(':').join(classpathEntries);
+        return Collections.singletonMap("CLASSPATH", classpath);
     }
 
     private static List<String> getAMCommands() {
